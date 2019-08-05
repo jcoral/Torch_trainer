@@ -21,7 +21,6 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 
 
-
 class Progbar(object):
     """Displays a progress bar.
 
@@ -217,7 +216,7 @@ class CallbackList(object):
             epoch: integer, index of epoch.
             logs: dictionary of logs.
         """
-        logs = logs or {}
+        logs = {} if logs is None else logs
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch, logs)
         self._delta_t_batch = 0.
@@ -231,7 +230,7 @@ class CallbackList(object):
             epoch: integer, index of epoch.
             logs: dictionary of logs.
         """
-        logs = logs or {}
+        logs = {} if logs is None else logs
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
 
@@ -242,7 +241,7 @@ class CallbackList(object):
             batch: integer, index of batch within the current epoch.
             logs: dictionary of logs.
         """
-        logs = logs or {}
+        logs = {} if logs is None else logs
         t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_begin(batch, logs)
@@ -263,7 +262,7 @@ class CallbackList(object):
             batch: integer, index of batch within the current epoch.
             logs: dictionary of logs.
         """
-        logs = logs or {}
+        logs = {} if logs is None else logs
         if not hasattr(self, '_t_enter_batch'):
             self._t_enter_batch = time.time()
         self._delta_t_batch = time.time() - self._t_enter_batch
@@ -284,7 +283,7 @@ class CallbackList(object):
         # Arguments
             logs: dictionary of logs.
         """
-        logs = logs or {}
+        logs = {} if logs is None else logs
         for callback in self.callbacks:
             callback.on_train_begin(logs)
 
@@ -294,13 +293,12 @@ class CallbackList(object):
         # Arguments
             logs: dictionary of logs.
         """
-        logs = logs or {}
+        logs = {} if logs is None else logs
         for callback in self.callbacks:
             callback.on_train_end(logs)
 
     def __iter__(self):
         return iter(self.callbacks)
-
 
 
 class Callback(object):
@@ -359,7 +357,6 @@ class Callback(object):
         pass
 
 
-
 class BaseLogger(Callback):
     """Callback that accumulates epoch averages of metrics.
 
@@ -373,6 +370,7 @@ class BaseLogger(Callback):
     """
 
     def __init__(self, stateful_metrics=None):
+        super(BaseLogger, self).__init__()
         if stateful_metrics:
             self.stateful_metrics = set(stateful_metrics)
         else:
@@ -383,7 +381,7 @@ class BaseLogger(Callback):
         self.totals = {}
 
     def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
+        logs = {} if logs is None else logs
         batch_size = logs.get('size', 0)
         self.seen += batch_size
 
@@ -407,13 +405,12 @@ class BaseLogger(Callback):
                         logs[k] = self.totals[k] / self.seen
 
 
-
 class TerminateOnNaN(Callback):
     """Callback that terminates training when a NaN loss is encountered.
     """
 
     def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
+        logs = {} if logs is None else logs
         loss = logs.get('loss')
         if loss is not None:
             if np.isnan(loss) or np.isinf(loss):
@@ -473,7 +470,7 @@ class ProgbarLogger(Callback):
             self.log_values = []
 
     def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
+        logs = {} if logs is None else logs
         batch_size = logs.get('size', 0)
         if self.use_steps:
             self.seen += 1
@@ -490,7 +487,7 @@ class ProgbarLogger(Callback):
             self.progbar.update(self.seen, self.log_values)
 
     def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+        logs = {} if logs is None else logs
         for k in self.params['metrics']:
             if k in logs:
                 self.log_values.append((k, logs[k]))
@@ -511,7 +508,7 @@ class History(Callback):
         self.history = {}
 
     def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+        logs = {} if logs is None else logs
         self.epoch.append(epoch)
         for k, v in logs.items():
             self.history.setdefault(k, []).append(v)
@@ -582,13 +579,15 @@ class ModelCheckpoint(Callback):
                 self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+        logs = {} if logs is None else logs
         self.epochs_since_last_save += 1
         if self.epochs_since_last_save >= self.period:
             self.epochs_since_last_save = 0
             filepath = self.filepath.format(epoch=epoch + 1, **logs)
             if self.save_best_only:
                 current = logs.get(self.monitor)
+                if isinstance(current, list):
+                    current = current[-1]
                 if current is None:
                     warnings.warn('Can save best model only with %s available, '
                                   'skipping.' % (self.monitor), RuntimeWarning)
@@ -772,7 +771,7 @@ class RemoteMonitor(Callback):
         if requests is None:
             raise ImportError('RemoteMonitor requires '
                               'the `requests` library.')
-        logs = logs or {}
+        logs = {} if logs is None else logs
         send = {}
         send['epoch'] = epoch
         for k, v in logs.items():
@@ -840,7 +839,7 @@ class CSVLogger(Callback):
                                    **self._open_args)
 
     def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
+        logs = {} if logs is None else logs
 
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
@@ -968,8 +967,43 @@ class LambdaCallback(Callback):
             self.on_train_end = lambda logs: None
 
 
-
 class Trainer:
+    '''
+    ```
+        class LRSchedulerCallback(Callback):
+
+        def __init__(self, scheduler):
+            self.scheduler = scheduler
+
+        def on_epoch_end(self, epoch, logs=None):
+            self.scheduler.step()
+
+        def train_on_batch(trainer):
+            def _wrapper(X, y):
+                # Backward
+                def closure():
+                    trainer.optimizer.zero_grad()
+                    loss = trainer.model(X, y)
+                    loss.backward()
+                    return loss
+                return trainer.optimizer.step(closure)
+
+            return _wrapper
+    ```
+
+    # Example
+
+    ```python
+    data_loader = DataLoader(dataset, 10, True, collate_fn=collate_fn, num_workers=4)
+
+    optim = th.optim.SGD(model.parameters(), 0.01, momentum=0.9, weight_decay=1e-5)
+    scheduler = LRSchedulerCallback(StepLR(optim, step_size=4, gamma=0.5))
+
+    trainer = Trainer(model, optim,None, callbacks=[scheduler])
+    trainer.train_on_batch = train_on_batch(trainer) # Custom train_on_batch
+    trainer.fit(data_loader, epochs=50)
+    ```
+    '''
 
     def __init__(self, model: Module,
                  optimizer: Optimizer,
@@ -983,7 +1017,9 @@ class Trainer:
         if device is None:
             self.device = 'cpu'
             if th.cuda.is_available():
-                self.device = 'gpu'
+                self.device = 'cuda'
+        else:
+            self.device = device
 
         self._stop_training = False
 
@@ -1017,42 +1053,60 @@ class Trainer:
         })
 
         self.model.train()
-        callbacks.on_train_begin()
-
-
-        epoch_logs = {'loss': []}
+        epoch_logs = {}
+        callbacks.on_train_begin(epoch_logs)
         for epoch in range(1, epochs+1):
             if self._stop_training: return epoch_logs
 
             callbacks.on_epoch_begin(epoch, epoch_logs)
-
-            loss = 0
             batch_log = {'loss': []}
-            for idx in range(n_steps):
-                if self._stop_training: return epoch_logs
 
-                callbacks.on_batch_begin(idx, batch_log)
+            if isinstance(X, DataLoader):
+                self._train_data_loader(X, callbacks, epoch_logs, batch_log)
+            else:
+                for idx in range(n_steps):
+                    if self._stop_training: return epoch_logs
 
-                # split batch data
-                if isinstance(X, Dataset) or isinstance(X, DataLoader):
-                    batch_data = X[idx]
-                else:
-                    batch_x = X[idx * batch_size:(idx + 1) * batch_size]
-                    if y is not None:
-                        batch_y = y[idx * batch_size:(idx + 1) * batch_size]
-                        batch_data = (batch_x, batch_y)
+                    callbacks.on_batch_begin(idx, batch_log)
+
+                    # split batch data
+                    if isinstance(X, Dataset):
+                        batch_data = X[idx]
                     else:
-                        batch_data = (batch_x, )
-                loss = self.train_on_batch(*batch_data)
-                batch_log['loss'].append(loss.item())
-                callbacks.on_batch_end(idx, batch_log)
+                        batch_x = X[idx * batch_size:(idx + 1) * batch_size]
+                        if y is not None:
+                            batch_y = y[idx * batch_size:(idx + 1) * batch_size]
+                            batch_data = (batch_x, batch_y)
+                        else:
+                            batch_data = (batch_x, )
+                    loss = self.train_on_batch(*batch_data)
+                    batch_log['loss'].append(loss.item())
+                    callbacks.on_batch_end(idx, batch_log)
 
-            epoch_logs['loss'].append(loss.item())
+            for k, v in batch_log.items():
+                if isinstance(v, (list, tuple)):
+                    v = v[-1]
+                if k not in epoch_logs:
+                    epoch_logs[k] = []
+                epoch_logs[k].append(v)
             callbacks.on_epoch_end(epoch, epoch_logs)
 
         callbacks.on_train_end(epoch_logs)
         return epoch_logs
 
+    def _train_data_loader(self, data_loader, callbacks, epoch_logs, batch_log):
+        batch_idx = -1
+        for batch_data in zip(data_loader):
+            batch_idx += 1
+            if self._stop_training: return epoch_logs
+
+            callbacks.on_batch_begin(batch_idx, batch_log)
+
+            loss = self.train_on_batch(*batch_data[0])
+            batch_log['loss'].append(loss.item())
+            callbacks.on_batch_end(batch_idx, batch_log)
+
+        return batch_log
 
     def train_on_batch(self, X, y=None):
         X = X.to(self.device)
@@ -1067,11 +1121,9 @@ class Trainer:
             return loss
         return self.optimizer.step(closure)
 
-
     def predict(self, X):
         self.model.eval()
         return self.model(X)
-
 
     def stop_training(self):
         self._stop_training = True
