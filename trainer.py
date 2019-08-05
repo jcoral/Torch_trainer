@@ -966,30 +966,25 @@ class LambdaCallback(Callback):
         else:
             self.on_train_end = lambda logs: None
 
+            
+class LRSchedulerCallback(Callback):
+
+    def __init__(self, scheduler):
+        self.scheduler = scheduler
+        self.need_loss = isinstance(scheduler, th.optim.lr_scheduler.ReduceLROnPlateau)
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.need_loss:
+            loss = logs['loss'][-1]
+            if isinstance(loss, list):
+                loss = loss[-1]
+            self.scheduler.step(loss)
+        else:
+            self.scheduler.step()
+
 
 class Trainer:
     '''
-    ```
-        class LRSchedulerCallback(Callback):
-
-        def __init__(self, scheduler):
-            self.scheduler = scheduler
-
-        def on_epoch_end(self, epoch, logs=None):
-            self.scheduler.step()
-
-        def train_on_batch(trainer):
-            def _wrapper(X, y):
-                # Backward
-                def closure():
-                    trainer.optimizer.zero_grad()
-                    loss = trainer.model(X, y)
-                    loss.backward()
-                    return loss
-                return trainer.optimizer.step(closure)
-
-            return _wrapper
-    ```
 
     # Example
 
