@@ -73,24 +73,25 @@ class TestTrainer(TestCase):
 
 
     def test_TerminateOnNaN(self):
-        trainer = Trainer(self.model, self.optim,
-                          self.loss_fn,
-                          [TerminateOnNaN()],
-                          )
+        trainer = Trainer(
+            self.model, self.optim,
+            self.loss_fn,
+            [TerminateOnNaN()],
+        )
         self.model.test_TerminateOnNaN = True
 
         trainer.fit(self.ds, epochs=1, verbose=1)
 
 
     def test_ProgbarLogger(self):
-        trainer = Trainer(self.model, self.optim,
-                          self.loss_fn,
-                          metrics=[
-                              Accuracy(),
-                              TopKCategoricalAccuracy(),
-                              'loss'
-                          ]
-                          )
+        trainer = Trainer(
+            self.model, self.optim,
+            self.loss_fn,
+            metrics=[
+                Accuracy(),
+                TopKCategoricalAccuracy(),
+                'loss'
+            ])
 
         history = trainer.fit(self.ds, batch_size=2,
                               epochs=10, verbose=1,
@@ -102,7 +103,7 @@ class TestTrainer(TestCase):
         trainer = Trainer(self.model, self.optim,
                           self.loss_fn,
                           [ModelCheckpoint(
-                              '../tmp/test_mdoel.torch',
+                              '../tmp/test_model.pth',
                               monitor='loss'
                           )],)
 
@@ -129,16 +130,18 @@ class TestTrainer(TestCase):
 
     def test_tensorboard(self):
         ipt = torch.stack([self.ds[i][0] for i in range(2)])
-        trainer = Trainer(self.model, self.optim,
-                          self.loss_fn,
-                          callbacks=[TensorBoard('/Volumes/Coral/tmp/nb_tmp',
-                                                         comment='Test',
-                                                         input_to_model=ipt)],
-                          metrics=[
-                              Accuracy(),
-                              TopKCategoricalAccuracy(),
-                              'loss'
-                          ])
+        trainer = Trainer(
+            self.model, self.optim,
+            self.loss_fn,
+            callbacks=[TensorBoard('/Volumes/Coral/tmp/nb_tmp',
+                                           comment='Test',
+                                           input_to_model=ipt)],
+            metrics=[
+                Accuracy(),
+                TopKCategoricalAccuracy(),
+                'loss'
+            ]
+        )
 
         history = trainer.fit(
             self.ds, batch_size=2,
