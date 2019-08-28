@@ -54,6 +54,7 @@ trainer.fit(ds, epochs=1, verbose=1)
 
 # 2. Use metrics
 if you use metrics, you need to install ignite, [ignite document](https://pytorch.org/ignite).
+
 Metric is defined in `thtrainer.metrics`, and support string, for: `accuracy`, `loss`, `top-k`, `mae`, `mse`.
 
 ```python
@@ -115,7 +116,9 @@ class MyMetric(Metric):
 
 # 2.2. Evaluate COCO dectection result
 If you use COCOMetric, please make sure you have installed `pycocotools`.
+
 Install command: `pip install pycocotools`
+
 see: `Torch_trainer/test/test_COCOMetric.py`
 
 # 3. Callbacks
