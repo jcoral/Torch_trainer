@@ -4,14 +4,13 @@ from __future__ import unicode_literals
 
 import os
 
-import numpy as np
-import torch as th
+import torch
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
-from thtrainer.callbacks import ProgbarLogger, CallbackList, History
 from thtrainer import metrics as trainer_metrics
+from thtrainer.callbacks import ProgbarLogger, CallbackList, History
 from thtrainer.metrics import MetricList
 
 metric_dict = {
@@ -23,6 +22,7 @@ metric_dict = {
     'mse': trainer_metrics.MeanSquaredError
 }
 
+
 def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
 
     def f(x):
@@ -31,13 +31,14 @@ def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
         alpha = float(x) / warmup_iters
         return warmup_factor * (1 - alpha) + alpha
 
-    return th.optim.lr_scheduler.LambdaLR(optimizer, f)
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, f)
 
 
 def _check_data_loader(data, batch_size, shuffle):
     if not isinstance(data, DataLoader):
         data = DataLoader(data, batch_size=batch_size, shuffle=shuffle)
     return data
+
 
 def _check_metrics(metrics, loss_fn):
     def get_metric_ins(m):
@@ -48,7 +49,7 @@ def _check_metrics(metrics, loss_fn):
                 mi = mi.lower()
                 if mi not in metric_dict:
                     raise RuntimeError('Not %s metric' % mi)
-                if mi  == 'loss':
+                if mi == 'loss':
                     _metric_ins = metric_dict[mi](loss_fn)
                 else:
                     _metric_ins = metric_dict[mi]()
@@ -77,12 +78,33 @@ def _check_metrics(metrics, loss_fn):
     return metrics
 
 
+def _check_progbar_logger_metrics(metrics, validation_data):
+    keys = metrics.keys()
+    keys = list(keys)
+    if validation_data is None:
+        return keys
+    train_keys = ['train:' + k for k in keys]
+    val_keys = ['val:' + k for k in keys]
+    return train_keys + val_keys
+
+
 class Trainer:
     '''
-    Example::
+    # Arguments
+        model: `Module`.
+        optimizer: `Optimizer`.
+        loss_fn: `Module`.
+            Compute model loss
+        callbacks: List of `thtrainer.callbacks.Callback` instances.
+            List of callbacks to apply during training.
+        metrics: List of `thtrainer.metrics.Metric` instances.
+            Compute metrics at the end of each batch.
+
+
+    # Example
         >>> data_loader = DataLoader(dataset, 10, True, collate_fn=collate_fn, num_workers=4)
         >>>
-        >>> optim = th.optim.SGD(model.parameters(), 0.01, momentum=0.9, weight_decay=1e-5)
+        >>> optim = torch.optim.SGD(model.parameters(), 0.01, momentum=0.9, weight_decay=1e-5)
         >>> scheduler = LRSchedulerCallback(StepLR(optim, step_size=4, gamma=0.5))
         >>>
         >>> trainer = Trainer(model, optim,None, callbacks=[scheduler])
@@ -105,13 +127,13 @@ class Trainer:
 
         if device is None:
             self.device = 'cpu'
-            if th.cuda.is_available():
+            if torch.cuda.is_available():
                 self.device = 'cuda'
         else:
             self.device = device
 
         self._stop_training = False
-
+        self.validation_data = None
 
     def fit(self, data_loader,
             epochs=1, batch_size=32,
@@ -119,10 +141,23 @@ class Trainer:
             validation_data=None,
             shuffle=True):
         '''
-        :param data_loader: Dataset or Dataloader
-        :return: Train logs
+        # Arguments
+            batch_size: Integer.
+                Number of samples per gradient update.
+                If unspecified, `batch_size` will default to 32.
+            epochs: Integer.
+                Number of epochs to train the model.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            validation_data: `DataLoader` or `Dataset`
+                Evaluate validation_data the loss and any model metrics at the end of each epoch.
+                The model will not be trained on this data.
+            shuffle: Boolean (whether to shuffle the training data
+                before each epoch) or str (for 'batch').
+
         '''
         data_loader = _check_data_loader(data_loader, batch_size, shuffle)
+        self.validation_data = validation_data
 
         if verbose:
             if self.callbacks is not None:
@@ -140,7 +175,7 @@ class Trainer:
             'steps': n_steps,
             'samples': n_steps,
             'verbose': verbose,
-            'metrics': self.metrics.keys(),
+            'metrics': _check_progbar_logger_metrics(self.metrics, validation_data),
         })
         if validation_data is not None:
             callbacks.set_validation_data(validation_data)
@@ -154,8 +189,8 @@ class Trainer:
             warmup_factor
         )
 
-        train_loss = {}
-        callbacks.on_train_begin(train_loss)
+        train_logs = {}
+        callbacks.on_train_begin(train_logs)
         for epoch in range(1, epochs+1):
             self.model.train()
             if self._stop_training:
@@ -164,33 +199,51 @@ class Trainer:
 
             epoch_logs = {}
             callbacks.on_epoch_begin(epoch, epoch_logs)
+            self._train_data_loader(epoch, data_loader, callbacks, epoch_logs, warmup_scheduler)
 
-            batch_log = {}
-            self._train_data_loader(epoch, data_loader, callbacks, batch_log, warmup_scheduler)
+            # evaluate validattion_data
+            if validation_data is not None:
+                eval_res = self.evaluate(
+                    validation_data,
+                    batch_size,
+                    shuffle=False,
+                    metrics=self.metrics,
+                    verbose=0,
+                    device=self.device
+                )
+                for k, v in eval_res.items():
+                    epoch_logs['val:' + k] = v
 
-            for k, v in batch_log.items():
-                epoch_logs[k] = v
-            # TODO: Add metrics result to epoch_logs
-            # TODO: eval validation_data
             callbacks.on_epoch_end(epoch, epoch_logs)
 
-        callbacks.on_train_end(train_loss)
+        callbacks.on_train_end(train_logs)
         return history
 
-    def _train_data_loader(self, epoch, data_loader, callbacks, batch_log, warmup_scheduler=None):
+    def _train_data_loader(self, epoch, data_loader, callbacks, epoch_logs, warmup_scheduler=None):
+        self.metrics.reset()
         batch_idx = -1
+        batch_log = {}
         for batch_data in zip(data_loader):
             batch_idx += 1
-            if self._stop_training: return batch_log
+            if self._stop_training:
+                return batch_log
 
             callbacks.on_batch_begin(batch_idx, batch_log)
 
             loss = self.train_on_batch(*batch_data[0])
             batch_log['loss'] = loss.item()
             callbacks.on_batch_end(batch_idx, batch_log)
+
             if epoch == 1 and warmup_scheduler is not None:
                 warmup_scheduler.step()
-
+        res = self.metrics.compute()
+        prefix = ''
+        if self.validation_data is not None:
+            prefix = 'train:'
+        for k, v in res.items():
+            if isinstance(v, float):
+                v = round(v, 5)
+            epoch_logs[prefix + k] = v
         return batch_log
 
     def train_on_batch(self, X, y=None):
@@ -201,26 +254,94 @@ class Trainer:
         def closure():
             self.optimizer.zero_grad()
             output = self.model(X)
-            self.metrics.update((output, y))
-            loss = self.loss_fn(output, y)
+            if y is None:
+                pair = (output, )
+            else:
+                pair = (output, y)
+            self.metrics.update(pair)
+            loss = self.loss_fn(*pair)
             loss.backward()
             return loss
         return self.optimizer.step(closure)
 
+    @torch.no_grad()
     def predict(self, X):
         self.model.eval()
         return self.model(X)
+
+    def evaluate_batch(self, X, y=None, device=None):
+        device = device or self.device
+        X = X.to(device)
+        if y is not None:
+            y = y.to(device)
+        output = self.model(X)
+        if y is None:
+            return (output, )
+        else:
+            return (output, y)
+
+    @torch.no_grad()
+    def evaluate(self, data_loader, batch_size=1, shuffle=False, metrics=None, verbose=1, device=None):
+        if metrics is None and self.loss_fn is None:
+            raise RuntimeError('Not metric, because metrics and loss function is None.')
+        data_loader = _check_data_loader(data_loader, batch_size, shuffle)
+        metrics = _check_metrics(metrics, self.loss_fn)
+        n_steps = len(data_loader)
+
+        if verbose > 0:
+            progress = ProgbarLogger(stateful_metrics=metrics.keys())
+            progress.set_params({
+                'batch_size': batch_size,
+                'epochs': 1,
+                'steps': n_steps,
+                'samples': n_steps,
+                'verbose': verbose,
+                'metrics': ['eval:' + k for k in self.metrics.keys()],
+            })
+
+        device = device or self.device
+        self.model.eval()
+        metrics.reset()
+        epoch_logs = {}
+
+        if verbose > 0:
+            progress.on_train_begin({})
+            progress.on_epoch_begin(1, epoch_logs)
+
+        for batch, batch_data in zip(range(n_steps), data_loader):
+            if verbose > 0:
+                progress.on_batch_begin(batch)
+
+            output = self.evaluate_batch(*batch_data, device)
+            metrics.update(output)
+
+            if verbose > 0:
+                progress.on_batch_end(batch)
+
+        res = metrics.compute()
+
+        if verbose > 0:
+            for k, v in res.items():
+                if isinstance(v, float):
+                    v = round(v, 5)
+                epoch_logs['eval:' + k] = v
+        if verbose > 0:
+            progress.on_epoch_end(1, epoch_logs)
+            progress.on_train_end(epoch_logs)
+        return res
 
     def stop_training(self):
         self._stop_training = True
 
     def save_weights(self, filepath, overwrite=True):
-        if not overwrite and os.path.exists(filepath): return
-        th.save(self.model.state_dict(), filepath)
+        if not overwrite and os.path.exists(filepath):
+            return
+        torch.save(self.model.state_dict(), filepath)
 
     def save(self, filepath, overwrite=True):
-        if not overwrite and os.path.exists(filepath): return
-        th.save(self.model, filepath)
+        if not overwrite and os.path.exists(filepath):
+            return
+        torch.save(self.model, filepath)
 
     def get_weights(self):
         return self.model.state_dict()
