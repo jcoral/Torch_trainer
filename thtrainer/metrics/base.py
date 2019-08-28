@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 class MetricList(object):
     '''
-    Example::
+    # Example
         >>> from thtrainer.metrics import Accuracy, TopKCategoricalAccuracy, Metric, Loss
         >>> import torch
         >>> from torch import nn
