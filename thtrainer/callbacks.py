@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import collections
 import csv
@@ -12,13 +12,10 @@ import time
 import warnings
 from collections import deque, Iterable
 
+import numpy as np
 import requests
 import six
 import torch as th
-from torch.nn import Module
-from torch.optim.optimizer import Optimizer
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
 
 
 class Progbar(object):
@@ -73,7 +70,6 @@ class Progbar(object):
                     self._values[k] = [v * (current - self._seen_so_far),
                                        current - self._seen_so_far]
                 else:
-                    v = v[-1]
                     # print(self._values, k, v, current, self._seen_so_far)
                     self._values[k][0] += v * (current - self._seen_so_far)
                     self._values[k][1] += (current - self._seen_so_far)
@@ -208,6 +204,10 @@ class CallbackList(object):
     def set_model(self, model):
         for callback in self.callbacks:
             callback.set_model(model)
+
+    def set_validation_data(self, validation_data):
+        for callback in self.callbacks:
+            callback.validation_data = validation_data
 
     def on_epoch_begin(self, epoch, logs=None):
         """Called at the start of an epoch.
@@ -478,7 +478,7 @@ class ProgbarLogger(Callback):
             self.seen += batch_size
 
         for k in self.params['metrics']:
-            if k in logs and len(logs[k]) > 0:
+            if k in logs and logs[k] > 0:
                 self.log_values.append((k, np.array(logs[k])))
 
         # Skip progbar update for the last batch;
@@ -696,8 +696,12 @@ class EarlyStopping(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         current = self.get_monitor_value(logs)
-        if current is None:
+        if current is None or \
+                (isinstance(current, (list, tuple))
+                 and len(current) == 0):
             return
+        if isinstance(current, (list, tuple)):
+            current = current[-1]
 
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
@@ -835,8 +839,8 @@ class CSVLogger(Callback):
         else:
             mode = 'w'
         self.csv_file = io.open(self.filename,
-                                   mode + self.file_flags,
-                                   **self._open_args)
+                                mode + self.file_flags,
+                                **self._open_args)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = {} if logs is None else logs
@@ -966,12 +970,13 @@ class LambdaCallback(Callback):
         else:
             self.on_train_end = lambda logs: None
 
-            
+
 class LRSchedulerCallback(Callback):
 
     def __init__(self, scheduler):
         self.scheduler = scheduler
         self.need_loss = isinstance(scheduler, th.optim.lr_scheduler.ReduceLROnPlateau)
+
 
     def on_epoch_end(self, epoch, logs=None):
         if self.need_loss:
@@ -981,163 +986,6 @@ class LRSchedulerCallback(Callback):
             self.scheduler.step(loss)
         else:
             self.scheduler.step()
-
-
-class Trainer:
-    '''
-
-    # Example
-
-    ```python
-    data_loader = DataLoader(dataset, 10, True, collate_fn=collate_fn, num_workers=4)
-
-    optim = th.optim.SGD(model.parameters(), 0.01, momentum=0.9, weight_decay=1e-5)
-    scheduler = LRSchedulerCallback(StepLR(optim, step_size=4, gamma=0.5))
-
-    trainer = Trainer(model, optim,None, callbacks=[scheduler])
-    trainer.train_on_batch = train_on_batch(trainer) # Custom train_on_batch
-    trainer.fit(data_loader, epochs=50)
-    ```
-    '''
-
-    def __init__(self, model: Module,
-                 optimizer: Optimizer,
-                 loss: Module,
-                 callbacks=None,
-                 device=None):
-        self.model = model
-        self.optimizer = optimizer
-        self.loss_fn = loss
-        self.callbacks = callbacks if callbacks is not None else []
-        if device is None:
-            self.device = 'cpu'
-            if th.cuda.is_available():
-                self.device = 'cuda'
-        else:
-            self.device = device
-
-        self._stop_training = False
-
-
-    def fit(self, X, y=None, epochs=1, batch_size=32, verbose=1, callback_metrics=None):
-        '''
-        :param X: Tensor or Dataset or Dataloader
-        :param y: Tensor
-        :return: Train logs
-        '''
-
-        if verbose:
-            if self.callbacks is not None:
-                self.callbacks = list(self.callbacks) + [ProgbarLogger()]
-
-        callbacks = CallbackList(self.callbacks)
-        callbacks.set_model(self)
-
-        n_steps = int(np.ceil(len(X) * 1. / batch_size))
-        if isinstance(X, Dataset) or isinstance(X, DataLoader):
-            print(X)
-            n_steps = len(X)
-
-        callbacks.set_params({
-            'batch_size': batch_size,
-            'epochs': epochs,
-            'steps': n_steps,
-            'samples': n_steps,
-            'verbose': verbose,
-            'metrics': callback_metrics or ['loss'],
-        })
-
-        self.model.train()
-        epoch_logs = {}
-        callbacks.on_train_begin(epoch_logs)
-        for epoch in range(1, epochs+1):
-            if self._stop_training: return epoch_logs
-
-            callbacks.on_epoch_begin(epoch, epoch_logs)
-            batch_log = {'loss': []}
-
-            if isinstance(X, DataLoader):
-                self._train_data_loader(X, callbacks, epoch_logs, batch_log)
-            else:
-                for idx in range(n_steps):
-                    if self._stop_training: return epoch_logs
-
-                    callbacks.on_batch_begin(idx, batch_log)
-
-                    # split batch data
-                    if isinstance(X, Dataset):
-                        batch_data = X[idx]
-                    else:
-                        batch_x = X[idx * batch_size:(idx + 1) * batch_size]
-                        if y is not None:
-                            batch_y = y[idx * batch_size:(idx + 1) * batch_size]
-                            batch_data = (batch_x, batch_y)
-                        else:
-                            batch_data = (batch_x, )
-                    loss = self.train_on_batch(*batch_data)
-                    batch_log['loss'].append(loss.item())
-                    callbacks.on_batch_end(idx, batch_log)
-
-            for k, v in batch_log.items():
-                if isinstance(v, (list, tuple)):
-                    v = v[-1]
-                if k not in epoch_logs:
-                    epoch_logs[k] = []
-                epoch_logs[k].append(v)
-            callbacks.on_epoch_end(epoch, epoch_logs)
-
-        callbacks.on_train_end(epoch_logs)
-        return epoch_logs
-
-    def _train_data_loader(self, data_loader, callbacks, epoch_logs, batch_log):
-        batch_idx = -1
-        for batch_data in zip(data_loader):
-            batch_idx += 1
-            if self._stop_training: return epoch_logs
-
-            callbacks.on_batch_begin(batch_idx, batch_log)
-
-            loss = self.train_on_batch(*batch_data[0])
-            batch_log['loss'].append(loss.item())
-            callbacks.on_batch_end(batch_idx, batch_log)
-
-        return batch_log
-
-    def train_on_batch(self, X, y=None):
-        X = X.to(self.device)
-        if y is not None:
-            y = y.to(self.device)
-
-        def closure():
-            self.optimizer.zero_grad()
-            output = self.model(X)
-            loss = self.loss_fn(output.float(), y.float())
-            loss.backward()
-            return loss
-        return self.optimizer.step(closure)
-
-    def predict(self, X):
-        self.model.eval()
-        return self.model(X)
-
-    def stop_training(self):
-        self._stop_training = True
-
-    def save_weights(self, filepath, overwrite=True):
-        th.save(self.model.state_dict(), filepath)
-
-    def save(self, filepath, overwrite=True):
-        th.save(self.model, filepath)
-
-    def get_weights(self):
-        return self.model.state_dict()
-
-    def set_weights(self, weights):
-        self.model.load_state_dict(weights)
-
-
-
-
 
 
 

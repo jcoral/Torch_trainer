@@ -18,18 +18,22 @@ from torch import nn
 import torch as th
 from torch.utils.data import Dataset
 
-from nn_torch.detection.utils.trainer import (
+from thtrainer.callbacks import (
     TerminateOnNaN, ProgbarLogger,
     ModelCheckpoint, EarlyStopping,
-    CSVLogger, Trainer
+    CSVLogger
 )
+
+from thtrainer.metrics import *
+
+from thtrainer.trainer import Trainer
 
 
 class TestModel(nn.Module):
 
     def __init__(self):
         super(TestModel, self).__init__()
-        self.linear = nn.Linear(10, 1)
+        self.linear = nn.Linear(10, 10)
         self.test_nan = 0
         self.test_TerminateOnNaN = False
 
@@ -46,7 +50,7 @@ class DS(Dataset):
         return 20
 
     def __getitem__(self, idx):
-        return th.randn(10), th.randn(1)
+        return th.randn(10), th.randint(0, 10, (1, ))[0]
 
 
 class TestTrainer(TestCase):
@@ -54,7 +58,7 @@ class TestTrainer(TestCase):
     def setUp(self) -> None:
         self.model = TestModel()
         self.optim = th.optim.Adam(self.model.parameters())
-        self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.CrossEntropyLoss()
         self.ds = DS()
 
 
@@ -65,23 +69,28 @@ class TestTrainer(TestCase):
                           )
         self.model.test_TerminateOnNaN = True
 
-        trainer.fit(self.ds, epochs=2, verbose=1)
+        trainer.fit(self.ds, epochs=1, verbose=1)
 
 
     def test_ProgbarLogger(self):
         trainer = Trainer(self.model, self.optim,
                           self.loss_fn,
-                          # [ProgbarLogger()]
+                          metrics=[
+                              Accuracy(),
+                              TopKCategoricalAccuracy(),
+                              'loss'
+                          ]
                           )
 
-        trainer.fit(self.ds, epochs=2, verbose=1)
+        history = trainer.fit(self.ds, epochs=10, verbose=1)
+        print(history.history)
 
 
     def test_ModelCheckpoint(self):
         trainer = Trainer(self.model, self.optim,
                           self.loss_fn,
                           [ModelCheckpoint(
-                              './tmp/test_mdoel.th',
+                              '../tmp/test_mdoel.th',
                               monitor='loss'
                           )],)
 
@@ -99,10 +108,11 @@ class TestTrainer(TestCase):
     def test_CSVLogger(self):
         trainer = Trainer(self.model, self.optim,
                           self.loss_fn,
-                          [CSVLogger('./tmp/logs.csv')],
+                          [CSVLogger('../tmp/logs.csv')],
                           )
 
-        trainer.fit(self.ds, epochs=10, verbose=1)
+        history = trainer.fit(self.ds, epochs=10, verbose=1)
+        print(history.history)
 
 
 
