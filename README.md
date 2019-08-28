@@ -53,8 +53,8 @@ trainer.fit(ds, epochs=1, verbose=1)
 ```
 
 # 2. Use metrics
-if you use metrics, you need to install ignite, [ignite document](https://pytorch.org/ignite)
-Metric is defined in `thtrainer.metrics`, and support string, for: `accuracy`, `loss'`, `top-k`, `mae`, `mse`.
+if you use metrics, you need to install ignite, [ignite document](https://pytorch.org/ignite).
+Metric is defined in `thtrainer.metrics`, and support string, for: `accuracy`, `loss`, `top-k`, `mae`, `mse`.
 
 ```python
 from thtrainer.metrics import Accuracy, TopKCategoricalAccuracy
