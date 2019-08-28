@@ -15,9 +15,11 @@ from thtrainer.metrics.coco_lib import utils as det_utils
 def bbox_transform(output, metric):
     '''
     if dataset is COCOMetricDataset and iou_type is bbox, use it
-    :param output:
-    :param metric: COCOMetric
-    :return: (pred, targets)
+
+    # Arguments
+        output: `Tensor` or `list` or `tuple`.
+        metric: `COCOMetric`
+        :return: (pred, targets)
     '''
 
     outputs, targets = output
@@ -82,10 +84,11 @@ class COCOMetricDataset(torch.utils.data.Dataset):
 
 class COCOMetric(Metric):
     '''
-    - `update` must receive output of the form `(y_pred, y)`.
-    - `y_pred` must be in the following shape (batch_size, n, 4).
-    - `y` must be in the following shape (batch_size, ...).
-    - `y` and `y_pred` must be in the following shape of (batch_size, num_categories, ...) for multilabel cases.
+    # Arguments
+        `update` must receive output of the form `(y_pred, y)`.
+        `y_pred` must be in the following shape (batch_size, n, 4).
+        `y` must be in the following shape (batch_size, ...).
+        `y` and `y_pred` must be in the following shape of (batch_size, num_categories, ...) for multilabel cases.
     '''
 
     '''
