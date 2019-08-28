@@ -15,14 +15,17 @@ from __future__ import absolute_import
 from unittest import TestCase
 
 from torch import nn
-import torch as th
+import torch
 from torch.utils.data import Dataset
+import time
 
 from thtrainer.callbacks import (
     TerminateOnNaN, ProgbarLogger,
     ModelCheckpoint, EarlyStopping,
     CSVLogger
 )
+
+from thtrainer.tensorboard import TensorBoard
 
 from thtrainer.metrics import *
 
@@ -33,7 +36,9 @@ class TestModel(nn.Module):
 
     def __init__(self):
         super(TestModel, self).__init__()
-        self.linear = nn.Linear(10, 10)
+        self.linear1 = nn.Linear(10, 10)
+        self.linear2 = nn.Linear(10, 10)
+        self.linear3 = nn.Linear(10, 10)
         self.test_nan = 0
         self.test_TerminateOnNaN = False
 
@@ -42,7 +47,12 @@ class TestModel(nn.Module):
         if self.test_nan > 5 and self.test_TerminateOnNaN:
             return self.linear(x) / 0
         self.test_nan += 1
-        return self.linear(x)
+        if self.test_nan % 3 == 0:
+            time.sleep(1)
+
+        for linear in [self.linear1, self.linear2, self.linear3]:
+            x = linear(x)
+        return x
 
 class DS(Dataset):
 
@@ -50,14 +60,14 @@ class DS(Dataset):
         return 20
 
     def __getitem__(self, idx):
-        return th.randn(10), th.randint(0, 10, (1, ))[0]
+        return torch.randn(10), torch.randint(0, 10, (1,))[0]
 
 
 class TestTrainer(TestCase):
 
     def setUp(self) -> None:
         self.model = TestModel()
-        self.optim = th.optim.Adam(self.model.parameters())
+        self.optim = torch.optim.Adam(self.model.parameters())
         self.loss_fn = nn.CrossEntropyLoss()
         self.ds = DS()
 
@@ -82,7 +92,9 @@ class TestTrainer(TestCase):
                           ]
                           )
 
-        history = trainer.fit(self.ds, epochs=10, verbose=1)
+        history = trainer.fit(self.ds, batch_size=2,
+                              epochs=10, verbose=1,
+                              validation_data=self.ds)
         print(history.history)
 
 
@@ -90,7 +102,7 @@ class TestTrainer(TestCase):
         trainer = Trainer(self.model, self.optim,
                           self.loss_fn,
                           [ModelCheckpoint(
-                              '../tmp/test_mdoel.th',
+                              '../tmp/test_mdoel.torch',
                               monitor='loss'
                           )],)
 
@@ -113,6 +125,26 @@ class TestTrainer(TestCase):
 
         history = trainer.fit(self.ds, epochs=10, verbose=1)
         print(history.history)
+
+
+    def test_tensorboard(self):
+        ipt = torch.stack([self.ds[i][0] for i in range(2)])
+        trainer = Trainer(self.model, self.optim,
+                          self.loss_fn,
+                          callbacks=[TensorBoard('/Volumes/Coral/tmp/nb_tmp',
+                                                         comment='Test',
+                                                         input_to_model=ipt)],
+                          metrics=[
+                              Accuracy(),
+                              TopKCategoricalAccuracy(),
+                              'loss'
+                          ])
+
+        history = trainer.fit(
+            self.ds, batch_size=2,
+            epochs=10, verbose=1,
+            validation_data=self.ds
+        )
 
 
 
