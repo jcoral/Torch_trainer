@@ -81,12 +81,14 @@ def _check_metrics(metrics, loss_fn):
 def _check_progbar_logger_metrics(metrics, validation_data, loss_log):
     keys = metrics.keys()
     keys = list(keys)
-    if loss_log:
-        keys.append('loss')
     if validation_data is None:
+        if loss_log:
+            keys.append('loss')
         return keys
     train_keys = ['train:' + k for k in keys]
     val_keys = ['val:' + k for k in keys]
+    if loss_log:
+        train_keys.append('loss')
     return train_keys + val_keys
 
 
@@ -249,13 +251,16 @@ class Trainer:
 
             # evaluate validattion_data
             if validation_data is not None:
+                if verbose > 0:
+                    print('\n\nStarting evaluate model')
                 eval_res = self.evaluate(
                     validation_data,
                     batch_size,
                     shuffle=False,
                     metrics=self.metrics,
                     verbose=0,
-                    device=self.device
+                    device=self.device,
+                    loss_log=loss_log
                 )
                 res = _check_progbar_logger_value('val', eval_res)
                 epoch_logs.update(res)
@@ -267,6 +272,9 @@ class Trainer:
 
     def _train_data_loader(self, epoch, data_loader, callbacks, epoch_logs, warmup_scheduler=None, loss_log=None):
         self.metrics.reset()
+        prefix = ''
+        if self.validation_data is not None:
+            prefix = 'train'
         if loss_log:
             loss_sum = 0
         batch_idx = -1
@@ -279,6 +287,7 @@ class Trainer:
             callbacks.on_batch_begin(batch_idx, batch_log)
 
             loss = self.train_on_batch(*batch_data[0])
+
             batch_log['loss'] = loss.item()
             if loss_log:
                 loss_sum += loss.item()
@@ -287,13 +296,13 @@ class Trainer:
             if epoch == 1 and warmup_scheduler is not None:
                 warmup_scheduler.step()
         res = self.metrics.compute()
-        prefix = ''
-        if self.validation_data is not None:
-            prefix = 'train:'
         res = _check_progbar_logger_value(prefix, res)
         epoch_logs.update(res)
         if loss_log:
-            epoch_logs['loss'] = loss_sum / len(data_loader)
+            _key = 'loss'
+            if prefix is not None and prefix != '':
+                _key = 'train:loss'
+            epoch_logs[_key] = loss_sum / len(data_loader)
         return batch_log
 
     def train_on_batch(self, X, y=None):
@@ -325,14 +334,45 @@ class Trainer:
         if y is not None:
             y = y.to(device)
         output = self.model(X)
+        loss = None
+        if self.loss_fn is not None:
+            if y is None:
+                loss = self.loss_fn(output)
+            else:
+                loss = self.loss_fn(output, y)
         if y is None:
-            return (output, )
+            if loss is None:
+                return output
+            else:
+                return loss, output
         else:
-            return (output, y)
+            if loss is None:
+                return (output, y)
+            else:
+                return loss, (output, y)
 
     @torch.no_grad()
-    def evaluate(self, data_loader, batch_size=1, shuffle=False, metrics=None, verbose=1, device=None):
-        if metrics is None and self.loss_fn is None:
+    def evaluate(self,
+                 data_loader, batch_size=1,
+                 shuffle=False, metrics=None,
+                 verbose=1, device=None,
+                 loss_log=False):
+        '''
+        # Arguments
+            data_loader: `DataLoader`
+            batch_size: `Integer` DataLoader batch size
+            shuffle: Boolean (whether to shuffle the training data
+                before each epoch) or str (for 'batch').
+            metrics: List of `thtrainer.metrics.Metric` instances.
+                Compute metrics at the end of each batch.
+            verbose: `Integer`. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            loss_log: `Bool`, train batch whether return loss
+                if `True` or loss function is not None: Progbar logger show loss
+                if `False` and loss function is None:  Progbar logger not show loss
+        '''
+
+        if metrics is None and self.loss_fn is None and not loss_log:
             raise RuntimeError('Not metric, because metrics and loss function is None.')
         data_loader = _check_data_loader(data_loader, batch_size, shuffle)
         metrics = _check_metrics(metrics, self.loss_fn)
@@ -346,7 +386,7 @@ class Trainer:
                 'steps': n_steps,
                 'samples': n_steps,
                 'verbose': verbose,
-                'metrics': ['eval:' + k for k in self.metrics.keys()],
+                'metrics': list(set(['eval:' + k for k in self.metrics.keys()] + ['loss'])),
             })
 
         device = device or self.device
@@ -358,25 +398,39 @@ class Trainer:
             progress.on_train_begin({})
             progress.on_epoch_begin(1, epoch_logs)
 
+        if self.loss_fn is not None or loss_log:
+            loss_sum = 0
+        batch_logs = {}
         for batch, batch_data in zip(range(n_steps), data_loader):
             if verbose > 0:
-                progress.on_batch_begin(batch)
+                progress.on_batch_begin(batch, batch_logs)
 
             output = self.evaluate_batch(*batch_data, device)
+            if self.loss_fn is not None or loss_log:
+                loss, output = output
+                loss_sum += loss.item()
+                batch_logs['loss'] = loss_sum / (batch + 1)
             metrics.update(output)
 
             if verbose > 0:
-                progress.on_batch_end(batch)
+                progress.on_batch_end(batch, batch_logs)
 
         res = metrics.compute()
 
+        if self.loss_fn is not None or loss_log:
+            _key = 'loss'
+            loss = loss_sum / len(data_loader)
+            epoch_logs[_key] = loss
+            res['loss'] = loss
+
         if verbose > 0:
-            res = _check_progbar_logger_value('eval', res)
+            res = _check_progbar_logger_value('', res)
             epoch_logs.update(res)
 
         if verbose > 0:
             progress.on_epoch_end(1, epoch_logs)
             progress.on_train_end(epoch_logs)
+
         return res
 
     def stop_training(self):

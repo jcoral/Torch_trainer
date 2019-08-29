@@ -1,3 +1,5 @@
+[TOC]
+
 # Torch trainer
 The Torch trainer, and similar keras, callbacks from keras, has the same API with keras. see: [keras](https://keras.io/zh/)
 
@@ -113,14 +115,14 @@ class MyMetric(Metric):
         pass
 ```
 
-# 2.2. Evaluate COCO dectection result
+## 2.2. Evaluate COCO dectection result
 If you use COCOMetric, please make sure you have installed `pycocotools`.
 Install command: `pip install pycocotools`
 see: `Torch_trainer/test/test_COCOMetric.py`
 
 # 3. Callbacks
 
-# 3.1. Use tensorboard
+## 3.1. Use tensorboard
 In section, you need to install tensorboard and tensorflow, see: [install tutorial](https://pytorch.org/docs/stable/tensorboard.html)
 ```
 ipt = torch.stack([ds[i][0] for i in range(2)])
@@ -144,7 +146,7 @@ history = trainer.fit(
 )
 ```
 
-# 3.2. Control the training process
+## 3.2. Control the training process
 In section, you can control the training process, for example: early stopping, save model, ...
 ```
 trainer = Trainer(
@@ -160,7 +162,7 @@ trainer = Trainer(
 trainer.fit(ds, epochs=10, verbose=1)
 ```
 
-# 3.3. Write your callback
+## 3.3. Write your callback
 It is the same as Keras.
 
 ```
@@ -206,3 +208,38 @@ class MyCallback(Callback):
         pass
 ```
 
+
+# 4. Write your train event
+
+## 4.1. Write your train batch
+```python
+def train_on_batch(trainer):
+    def _wrapper(X, y):
+        images = images.to(trainer.device)
+        trainer.optimizer.zero_grad()
+        out = trainer.model(X)
+        loss = trainer.loss_fn(out, y)
+        trainer.metrics.update((out, y)) # if have metrics
+        loss.backward()
+        trainer.optimizer.step()
+        return loss
+
+    return _wrapper
+    
+trainer.train_on_batch = train_on_batch(trainer)
+```
+
+## 4.2. Write your evaluate batch
+
+```
+def evaluate_on_batch(trainer):
+    def _wrapper(images, y, device=None):
+        images = images.to(device)
+        output = trainer.model(images)
+        loss = trainer.loss_fn(output, y)
+        return (loss, output)
+
+    return _wrapper
+
+trainer.evaluate_batch = evaluate_on_batch(trainer)
+```

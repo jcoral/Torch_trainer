@@ -2,6 +2,8 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
 
+from pprint import pprint
+
 from thtrainer.callbacks import Callback
 from torch.utils.tensorboard import SummaryWriter
 import torch
@@ -23,11 +25,21 @@ class TensorBoard(Callback):
         # Split logs
         if logs is None or len(logs) == 0:
             return
-        metrics_logs = {metric.split(':')[-1]: {} for metric in self.params['metrics']}
+
+        metrics_logs = {}
+        for metric in logs.keys():
+            metric_segs = metric.split(':')
+            name = metric_segs[0]
+            if len(metric_segs) > 1:
+                name = ':'.join(metric_segs[1:])
+            metrics_logs[name] = {}
 
         for k, v in logs.items():
             is_metric_key = False
             seg_k = k.split(':')
+            if len(seg_k) > 1:
+                seg_k = [seg_k[0], ':'.join(seg_k[1:])]
+
             for metric_key in metrics_logs:
                 if metric_key == seg_k[-1]:
                     is_metric_key = True
