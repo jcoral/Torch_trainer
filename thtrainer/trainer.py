@@ -78,14 +78,59 @@ def _check_metrics(metrics, loss_fn):
     return metrics
 
 
-def _check_progbar_logger_metrics(metrics, validation_data):
+def _check_progbar_logger_metrics(metrics, validation_data, loss_log):
     keys = metrics.keys()
     keys = list(keys)
+    if loss_log:
+        keys.append('loss')
     if validation_data is None:
         return keys
     train_keys = ['train:' + k for k in keys]
     val_keys = ['val:' + k for k in keys]
     return train_keys + val_keys
+
+
+def _check_progbar_logger_iters(key, value):
+    kvs = {}
+    key_t = '%s:%s'
+    if isinstance(value, dict):
+        value = value.items()
+    elif isinstance(value, (tuple, list)):
+        value = enumerate(value)
+    else:
+        return {key: value}
+
+    for i, vi in value:
+        _sub_key = key_t % (key, str(i))
+        if isinstance(vi, (tuple, list, dict)):
+            res = _check_progbar_logger_iters(_sub_key, vi)
+        else:
+            res = {_sub_key: vi}
+        kvs.update(res)
+    return kvs
+
+
+def _check_progbar_logger_value(key, value):
+    kvs = {}
+    if key is None or key == '':
+        key_t = '%s%s'
+    else:
+        key_t = '%s:%s'
+    if isinstance(value, dict):
+        value = value.items()
+    elif isinstance(value, (tuple, list)):
+        value = enumerate(value)
+    else:
+        return {key: value}
+
+    for i, vi in value:
+        _sub_key = key_t % (key, str(i))
+        if isinstance(vi, (tuple, list, dict)):
+            res = _check_progbar_logger_iters(_sub_key, vi)
+        else:
+            res = {_sub_key: vi}
+        kvs.update(res)
+    return kvs
 
 
 class Trainer:
@@ -139,6 +184,7 @@ class Trainer:
             epochs=1, batch_size=32,
             verbose=1,
             validation_data=None,
+            loss_log=None,
             shuffle=True):
         '''
         # Arguments
@@ -175,7 +221,7 @@ class Trainer:
             'steps': n_steps,
             'samples': n_steps,
             'verbose': verbose,
-            'metrics': _check_progbar_logger_metrics(self.metrics, validation_data),
+            'metrics': _check_progbar_logger_metrics(self.metrics, validation_data, loss_log),
         })
         if validation_data is not None:
             callbacks.set_validation_data(validation_data)
@@ -199,7 +245,7 @@ class Trainer:
 
             epoch_logs = {}
             callbacks.on_epoch_begin(epoch, epoch_logs)
-            self._train_data_loader(epoch, data_loader, callbacks, epoch_logs, warmup_scheduler)
+            self._train_data_loader(epoch, data_loader, callbacks, epoch_logs, warmup_scheduler, loss_log)
 
             # evaluate validattion_data
             if validation_data is not None:
@@ -211,16 +257,18 @@ class Trainer:
                     verbose=0,
                     device=self.device
                 )
-                for k, v in eval_res.items():
-                    epoch_logs['val:' + k] = v
+                res = _check_progbar_logger_value('val', eval_res)
+                epoch_logs.update(res)
 
             callbacks.on_epoch_end(epoch, epoch_logs)
 
         callbacks.on_train_end(train_logs)
         return history
 
-    def _train_data_loader(self, epoch, data_loader, callbacks, epoch_logs, warmup_scheduler=None):
+    def _train_data_loader(self, epoch, data_loader, callbacks, epoch_logs, warmup_scheduler=None, loss_log=None):
         self.metrics.reset()
+        if loss_log:
+            loss_sum = 0
         batch_idx = -1
         batch_log = {}
         for batch_data in zip(data_loader):
@@ -232,6 +280,8 @@ class Trainer:
 
             loss = self.train_on_batch(*batch_data[0])
             batch_log['loss'] = loss.item()
+            if loss_log:
+                loss_sum += loss.item()
             callbacks.on_batch_end(batch_idx, batch_log)
 
             if epoch == 1 and warmup_scheduler is not None:
@@ -240,10 +290,10 @@ class Trainer:
         prefix = ''
         if self.validation_data is not None:
             prefix = 'train:'
-        for k, v in res.items():
-            if isinstance(v, float):
-                v = round(v, 5)
-            epoch_logs[prefix + k] = v
+        res = _check_progbar_logger_value(prefix, res)
+        epoch_logs.update(res)
+        if loss_log:
+            epoch_logs['loss'] = loss_sum / len(data_loader)
         return batch_log
 
     def train_on_batch(self, X, y=None):
@@ -321,10 +371,9 @@ class Trainer:
         res = metrics.compute()
 
         if verbose > 0:
-            for k, v in res.items():
-                if isinstance(v, float):
-                    v = round(v, 5)
-                epoch_logs['eval:' + k] = v
+            res = _check_progbar_logger_value('eval', res)
+            epoch_logs.update(res)
+
         if verbose > 0:
             progress.on_epoch_end(1, epoch_logs)
             progress.on_train_end(epoch_logs)
@@ -348,6 +397,8 @@ class Trainer:
 
     def set_weights(self, weights):
         self.model.load_state_dict(weights)
+
+
 
 
 

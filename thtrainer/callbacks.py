@@ -139,7 +139,8 @@ class Progbar(object):
 
             for k in self._values:
                 info += ' - %s:' % k
-                if isinstance(self._values[k], list):
+
+                if isinstance(self._values[k], list) and not isinstance(self._values[k][0], str):
                     avg = np.mean(
                         self._values[k][0] / max(1, self._values[k][1]))
                     if abs(avg) > 1e-3:
@@ -147,7 +148,10 @@ class Progbar(object):
                     else:
                         info += ' %.4e' % avg
                 else:
-                    info += ' %s' % self._values[k]
+                    v = self._values[k]
+                    if isinstance(v, list):
+                        v = v[0]
+                    info += ' %s' % v
 
             self._total_width += len(info)
             if prev_total_width > self._total_width:

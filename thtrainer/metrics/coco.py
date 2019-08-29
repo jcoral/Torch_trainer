@@ -17,7 +17,7 @@ def bbox_transform(output, metric):
     if dataset is COCOMetricDataset and iou_type is bbox, use it
 
     # Arguments
-        output: `Tensor` or `list` or `tuple`.
+        output: `tuple((bboxes, scores), target)`.
         metric: `COCOMetric`
         :return: (pred, targets)
     '''
