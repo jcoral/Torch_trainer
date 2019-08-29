@@ -13,6 +13,7 @@ from thtrainer import metrics as trainer_metrics
 from thtrainer.callbacks import ProgbarLogger, CallbackList, History
 from thtrainer.metrics import MetricList
 
+
 metric_dict = {
     'acc': trainer_metrics.Accuracy,
     'accuracy': trainer_metrics.Accuracy,
@@ -85,10 +86,11 @@ def _check_progbar_logger_metrics(metrics, validation_data, loss_log):
         if loss_log:
             keys.append('loss')
         return keys
+    if loss_log:
+        keys.append('loss')
     train_keys = ['train:' + k for k in keys]
     val_keys = ['val:' + k for k in keys]
-    if loss_log:
-        train_keys.append('loss')
+
     return train_keys + val_keys
 
 
@@ -146,6 +148,9 @@ class Trainer:
             List of callbacks to apply during training.
         metrics: List of `thtrainer.metrics.Metric` instances.
             Compute metrics at the end of each batch.
+        val_metrics: List of `thtrainer.metrics.Metric` instances.
+            Evaluate validation data use val_metrics.
+            if `None`: use metrics
 
 
     # Example
@@ -165,12 +170,17 @@ class Trainer:
                  loss_fn: Module,
                  callbacks=None,
                  metrics=None,
+                 val_metrics=None,
                  device=None):
         self.model = model
         self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.callbacks = callbacks or []
         self.metrics = _check_metrics(metrics, loss_fn)
+        if val_metrics is None:
+            self.val_metrics = deepcopy(self.metrics)
+        else:
+            self.val_metrics = _check_metrics(val_metrics, loss_fn)
 
         if device is None:
             self.device = 'cpu'
@@ -257,7 +267,7 @@ class Trainer:
                     validation_data,
                     batch_size,
                     shuffle=False,
-                    metrics=self.metrics,
+                    metrics=self.val_metrics,
                     verbose=0,
                     device=self.device,
                     loss_log=loss_log
@@ -375,7 +385,8 @@ class Trainer:
         if metrics is None and self.loss_fn is None and not loss_log:
             raise RuntimeError('Not metric, because metrics and loss function is None.')
         data_loader = _check_data_loader(data_loader, batch_size, shuffle)
-        metrics = _check_metrics(metrics, self.loss_fn)
+        if not isinstance(metrics, trainer_metrics.MetricList):
+            metrics = _check_metrics(metrics, self.loss_fn)
         n_steps = len(data_loader)
 
         if verbose > 0:
@@ -451,7 +462,6 @@ class Trainer:
 
     def set_weights(self, weights):
         self.model.load_state_dict(weights)
-
 
 
 
