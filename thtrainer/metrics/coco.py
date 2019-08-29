@@ -85,17 +85,18 @@ class COCOMetricDataset(torch.utils.data.Dataset):
 class COCOMetric(Metric):
     '''
     # Arguments
+        data_loader: `DataLoader`
+        img_size: `(Int, Int)`, (h, w)
+        iou_types: `bbox` or `segm` or `keypoints`, default `bbox`
+        device: `torch.device`
+    '''
+
+    '''
+    # Update Arguments
         `update` must receive output of the form `(y_pred, y)`.
         `y_pred` must be in the following shape (batch_size, n, 4).
         `y` must be in the following shape (batch_size, ...).
         `y` and `y_pred` must be in the following shape of (batch_size, num_categories, ...) for multilabel cases.
-    '''
-
-    '''
-    :param data_loader: torch DataLoader
-    :param img_size: (h, w)
-    :param iou_types: `bbox` or `segm` or `keypoints`, default `bbox`
-    :param device: torch device
     '''
 
     bbox_eval_keys = [
@@ -119,8 +120,6 @@ class COCOMetric(Metric):
                  iou_types=None,
                  device=None,
                  output_transform=lambda x, metric: x):
-
-
         self.img_size = img_size
         self.iou_types = iou_types or ['bbox']
         self.output_transform = output_transform

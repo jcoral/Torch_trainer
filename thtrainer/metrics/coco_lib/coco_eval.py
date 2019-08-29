@@ -57,6 +57,7 @@ class CocoEvaluator(object):
             coco_eval.accumulate()
 
     def summarize(self):
+        print('\n')
         for iou_type, coco_eval in self.coco_eval.items():
             coco_eval.summarize()
 
