@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 from __future__ import absolute_import
+from __future__ import unicode_literals
 
-from pprint import pprint
+from torch.utils.tensorboard import SummaryWriter
 
 from thtrainer.callbacks import Callback
-from torch.utils.tensorboard import SummaryWriter
-import torch
+
+KEY_SEG = '_'
 
 class TensorBoard(Callback):
 
@@ -31,21 +31,24 @@ class TensorBoard(Callback):
             metric_segs = metric.split(':')
             name = metric_segs[0]
             if len(metric_segs) > 1:
-                name = ':'.join(metric_segs[1:])
+                name = KEY_SEG.join(metric_segs[1:])
             metrics_logs[name] = {}
 
         for k, v in logs.items():
             is_metric_key = False
             seg_k = k.split(':')
             if len(seg_k) > 1:
-                seg_k = [seg_k[0], ':'.join(seg_k[1:])]
+                seg_k = [seg_k[0], KEY_SEG.join(seg_k[1:])]
 
             for metric_key in metrics_logs:
                 if metric_key == seg_k[-1]:
                     is_metric_key = True
-                    metrics_logs[metric_key][seg_k[0]] = v
+                    metric_key = metric_key.replace(':', KEY_SEG)
+                    tag = seg_k[0].replace(':', KEY_SEG)
+                    metrics_logs[metric_key][tag] = v
             if not is_metric_key:
-                self.writer.add_scalar(k, v, epoch)
+                metric_key = k.replace(':', KEY_SEG)
+                self.writer.add_scalar(metric_key, v, epoch)
 
         for metric, values in metrics_logs.items():
             self.writer.add_scalars(metric, values, epoch)
@@ -54,6 +57,7 @@ class TensorBoard(Callback):
 
     def on_train_end(self, logs=None):
         self.writer.close()
+
 
 
 
