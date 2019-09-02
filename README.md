@@ -237,6 +237,7 @@ def evaluate_on_batch(trainer):
         images = images.to(device)
         output = trainer.model(images)
         loss = trainer.loss_fn(output, y)
+        trainer.metrics.update((output, y)) # if have metrics
         return (loss, output)
 
     return _wrapper
