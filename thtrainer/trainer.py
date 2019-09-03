@@ -87,7 +87,7 @@ def _check_progbar_logger_metrics(metrics, validation_data, loss_log):
         if loss_log:
             keys.append('loss')
         return keys
-    if loss_log:
+    if loss_log or validation_data is not None:
         keys.append('loss')
     train_keys = ['train:' + k for k in keys]
     val_keys = ['val:' + k for k in keys]
