@@ -92,7 +92,7 @@ def _check_progbar_logger_metrics(metrics, validation_data, loss_log):
     train_keys = ['train:' + k for k in keys]
     val_keys = ['val:' + k for k in keys]
 
-    return train_keys + val_keys
+    return train_keys + val_keys + ['loss']
 
 
 def _check_progbar_logger_iters(key, value):
