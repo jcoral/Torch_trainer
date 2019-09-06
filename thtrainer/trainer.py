@@ -198,7 +198,9 @@ class Trainer:
             verbose=1,
             validation_data=None,
             loss_log=None,
-            shuffle=True):
+            shuffle=True,
+            validate_steps=1,
+            validate_init=1):
         '''
         # Arguments
             batch_size: Integer.
@@ -213,6 +215,10 @@ class Trainer:
                 The model will not be trained on this data.
             shuffle: Boolean (whether to shuffle the training data
                 before each epoch) or str (for 'batch').
+            validate_steps: Integer
+                Evaluate validation data when epoch % validate_steps == 0
+            validate_init: Integer
+                Evaluate validation data when epoch == validate_init
 
         '''
         data_loader = _check_data_loader(data_loader, batch_size, shuffle)
@@ -261,9 +267,10 @@ class Trainer:
             self._train_data_loader(epoch, data_loader, callbacks, epoch_logs, warmup_scheduler, loss_log)
 
             # evaluate validattion_data
-            if validation_data is not None:
+            eval_val_data = epoch % validate_steps == 0 and epoch >= validate_init
+            if validation_data is not None and eval_val_data:
                 if verbose > 0:
-                    print('\n\nStarting evaluate model')
+                    print('\nStarting evaluate model')
                 eval_res = self.evaluate(
                     validation_data,
                     batch_size,
