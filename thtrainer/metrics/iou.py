@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 
 from thtrainer.metrics import Metric, ConfusionMatrix, IoU
-
+import torch
 
 class IOUMetric(Metric):
     '''
@@ -38,7 +38,10 @@ class IOUMetric(Metric):
         self.cm.update(output)
 
     def compute(self):
-        return self.iou.compute()
+        res = self.iou.compute()
+        if torch.is_tensor(res):
+            res = res.cpu().detach().numpy()
+        return res
 
 
 class MeanIOUMetric(IOUMetric):
