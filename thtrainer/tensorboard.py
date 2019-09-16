@@ -53,8 +53,6 @@ class TensorBoard(Callback):
         for metric, values in metrics_logs.items():
             self.writer.add_scalars(metric, values, epoch)
 
-        # self.writer.add_scalars('Train', logs, epoch)
-
     def on_train_end(self, logs=None):
         self.writer.close()
 
