@@ -456,13 +456,9 @@ class Trainer:
         self._stop_training = True
 
     def save_weights(self, filepath, overwrite=True):
-        if not overwrite and os.path.exists(filepath):
-            return
         torch.save(self.model.state_dict(), filepath)
 
     def save(self, filepath, overwrite=True):
-        if not overwrite and os.path.exists(filepath):
-            return
         torch.save(self.model, filepath)
 
     def get_weights(self):

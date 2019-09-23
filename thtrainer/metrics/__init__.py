@@ -26,6 +26,3 @@ from thtrainer.metrics.iou import IOUMetric, MeanIOUMetric
 
 
 
-
-
-
