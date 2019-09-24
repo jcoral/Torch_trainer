@@ -51,7 +51,7 @@ class DS(Dataset):
 model = TestModel()
 optim = torch.optim.Adam(self.model.parameters())
 loss_fn = nn.CrossEntropyLoss()
-ds = DS()
+ds = DataLoader(DS())
 
 # init trainer
 trainer = Trainer(
