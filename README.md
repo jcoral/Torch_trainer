@@ -7,10 +7,21 @@ Some of metrics from ignite, see: [ignite](https://pytorch.org/ignite)
 
 Torch trainer api: [API](https://github.com/jcoral/Torch_trainer/blob/master/API.md)
 
+# How to install
+
+```
+> https://github.com/jcoral/Torch_trainer.git
+> cd your_path/Torch_trainer
+> python setup.py install
+```
+
 # 1. Base example: Using trainer to train model
 
 ## 1.1、Define model and dataset
-```python
+
+```
+pythttps://github.com/jcoral/Torch_trainer.githon
+```
 class TestModel(nn.Module):
     def __init__(self):
         super(TestModel, self).__init__()
