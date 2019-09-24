@@ -5,7 +5,7 @@ The Torch trainer, and similar keras, callbacks from keras, has the same API wit
 
 Some of metrics from ignite, see: [ignite](https://pytorch.org/ignite)
 
-Torch trainer api: [API](https://github.com/jcoral/Torch_trainer/API.md)
+Torch trainer api: [API](https://github.com/jcoral/Torch_trainer/blob/master/API.md)
 
 # 1. Base example: Using trainer to train model
 
