@@ -9,7 +9,7 @@ Some of metrics from ignite, see: [ignite](https://pytorch.org/ignite)
 # 1. Base example: Using trainer to train model
 
 ## 1.1、Define model and dataset
-``` python
+```python
 class TestModel(nn.Module):
     def __init__(self):
         super(TestModel, self).__init__()
@@ -124,7 +124,7 @@ see: `Torch_trainer/test/test_COCOMetric.py`
 
 ## 3.1. Use tensorboard
 In section, you need to install tensorboard and tensorflow, see: [install tutorial](https://pytorch.org/docs/stable/tensorboard.html)
-```
+```python
 ipt = torch.stack([ds[i][0] for i in range(2)])
 trainer = Trainer(
     model, optim,
@@ -148,7 +148,7 @@ history = trainer.fit(
 
 ## 3.2. Control the training process
 In section, you can control the training process, for example: early stopping, save model, ...
-```
+```python
 trainer = Trainer(
     model, optim,
     loss_fn,
@@ -165,7 +165,7 @@ trainer.fit(ds, epochs=10, verbose=1)
 ## 3.3. Write your callback
 It is the same as Keras.
 
-```
+```python
 # TODO: To Implement some methods you want
 class MyCallback(Callback):
     """Abstract base class used to build new callbacks.
@@ -231,7 +231,7 @@ trainer.train_on_batch = train_on_batch(trainer)
 
 ## 4.2. Write your evaluate batch
 
-```
+```python
 def evaluate_on_batch(trainer):
     def _wrapper(images, y, device=None):
         images = images.to(device)
