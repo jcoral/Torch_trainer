@@ -7,6 +7,8 @@ import torch
 
 class IOUMetric(Metric):
     '''
+    Calculates Intersection over Union
+
     # Arguments
         num_classes (int): number of classes. In case of images, num_classes should also count the background index 0.
         average (str, optional): confusion matrix values averaging schema: None, "samples", "recall", "precision".
@@ -45,7 +47,9 @@ class IOUMetric(Metric):
 
 
 class MeanIOUMetric(IOUMetric):
-
+    '''
+    Calculates mean Intersection over Union
+    '''
     def __init__(self, num_classes,
                  average=None,
                  ignore_index=None,
