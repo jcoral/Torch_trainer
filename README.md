@@ -10,9 +10,7 @@ Torch trainer api: [API](https://github.com/jcoral/Torch_trainer/blob/master/API
 # How to install
 
 ```
-> https://github.com/jcoral/Torch_trainer.git
-> cd your_path/Torch_trainer
-> python setup.py install
+> pip install git+https://github.com/jcoral/Torch_trainer.git@master
 ```
 
 # 1. Base example: Using trainer to train model
