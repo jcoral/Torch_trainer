@@ -200,7 +200,8 @@ class Trainer:
             loss_log=None,
             shuffle=True,
             validate_steps=1,
-            validate_init=1):
+            validate_init=1,
+            warmup=False):
         '''
         # Arguments
             batch_size: Integer.
@@ -246,13 +247,15 @@ class Trainer:
             callbacks.set_validation_data(validation_data)
 
         # ref detection warmup
-        warmup_factor = 1. / 1000
-        warmup_iters = min(1000, len(data_loader) - 1)
-        warmup_scheduler = warmup_lr_scheduler(
-            self.optimizer,
-            warmup_iters,
-            warmup_factor
-        )
+        warmup_scheduler = None
+        if warmup:
+            warmup_factor = 1. / 1000
+            warmup_iters = min(1000, len(data_loader) - 1)
+            warmup_scheduler = warmup_lr_scheduler(
+                self.optimizer,
+                warmup_iters,
+                warmup_factor
+            )
 
         train_logs = {}
         callbacks.on_train_begin(train_logs)
