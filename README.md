@@ -5,6 +5,13 @@ The Torch trainer, and similar keras, callbacks from keras, has the same API wit
 
 Some of metrics from ignite, see: [ignite](https://pytorch.org/ignite)
 
+Torch trainer api: [API](https://github.com/jcoral/Torch_trainer/blob/master/API.md)
+
+# How to install
+
+```
+> pip install git+https://github.com/jcoral/Torch_trainer.git@master
+```
 
 # 1. Base example: Using trainer to train model
 
@@ -42,7 +49,7 @@ class DS(Dataset):
 model = TestModel()
 optim = torch.optim.Adam(self.model.parameters())
 loss_fn = nn.CrossEntropyLoss()
-ds = DS()
+ds = DataLoader(DS())
 
 # init trainer
 trainer = Trainer(
