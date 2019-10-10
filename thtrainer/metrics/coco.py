@@ -27,7 +27,11 @@ def bbox_transform(output, metric):
     out = []
     boxes, scores = outputs
     for b, s in zip(boxes, scores):
-        b = det_utils.to_xyxy(b, metric.img_size[0], metric.img_size[1])
+        if metric.to_xyxy:
+            if metric.img_size is None:
+                b = det_utils.to_xyxy(b)
+            else:
+                b = det_utils.to_xyxy(b, metric.img_size[0], metric.img_size[1])
         labels = s
         max_score=s
         if len(s) != 0:
@@ -94,7 +98,7 @@ class COCOMetric(Metric):
     '''
     # Update Arguments
         `update` must receive output of the form `(y_pred, y)`.
-        `y_pred` must be in the following shape (batch_size, n, 4).
+        `y_pred` must be in the following shape (batch_size, n, 4). bbox(x1, y1, x2, y2)
         `y` must be in the following shape (batch_size, ...).
         `y` and `y_pred` must be in the following shape of (batch_size, num_categories, ...) for multilabel cases.
     '''
@@ -116,13 +120,15 @@ class COCOMetric(Metric):
     ]
 
     def __init__(self, data_loader,
-                 img_size,
+                 img_size=None,
                  iou_types=None,
                  device=None,
-                 output_transform=lambda x, metric: x):
+                 output_transform=lambda x, metric: x,
+                 to_xyxy=False):
         self.img_size = img_size
         self.iou_types = iou_types or ['bbox']
         self.output_transform = output_transform
+        self.to_xyxy = to_xyxy
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = device
