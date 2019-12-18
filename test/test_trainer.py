@@ -104,10 +104,11 @@ class TestTrainer(TestCase):
                           self.loss_fn,
                           [ModelCheckpoint(
                               '../tmp/test_model.pth',
-                              monitor='loss'
-                          )],)
+                              monitor='loss',
+                              verbose=1
+                          )])
 
-        trainer.fit(self.ds, epochs=2)
+        trainer.fit(self.ds, epochs=5)
 
 
     def test_EarlyStopping(self):
