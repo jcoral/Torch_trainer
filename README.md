@@ -7,6 +7,11 @@ Some of metrics from ignite, see: [ignite](https://pytorch.org/ignite/metrics.ht
 
 Torch trainer api: [API](https://github.com/jcoral/Torch_trainer/blob/master/API.md)
 
+You can refer to the template:
+- classification: [click](https://github.com/jcoral/Torch_trainer/blob/master/templates/classification.py)
+- detection: [click](https://github.com/jcoral/Torch_trainer/blob/master/templates/detection.py)
+- segmentation: [click](https://github.com/jcoral/Torch_trainer/blob/master/templates/segmentation.py)
+
 # How to install
 
 ```
