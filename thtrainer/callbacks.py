@@ -977,7 +977,7 @@ class LambdaCallback(Callback):
 
 class LRSchedulerCallback(Callback):
 
-    def __init__(self, scheduler, monitor='loss'):
+    def __init__(self, scheduler, monitor='train:MeanIOUMetric'):
         self.scheduler = scheduler
         self.monitor = monitor
         self.need_loss = isinstance(scheduler, th.optim.lr_scheduler.ReduceLROnPlateau)
