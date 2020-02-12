@@ -977,14 +977,14 @@ class LambdaCallback(Callback):
 
 class LRSchedulerCallback(Callback):
 
-    def __init__(self, scheduler):
+    def __init__(self, scheduler, monitor='val:loss'):
         self.scheduler = scheduler
         self.need_loss = isinstance(scheduler, th.optim.lr_scheduler.ReduceLROnPlateau)
 
 
     def on_epoch_end(self, epoch, logs=None):
         if self.need_loss:
-            loss = logs['loss'][-1]
+            loss = logs[monitor][-1]
             if isinstance(loss, list):
                 loss = loss[-1]
             self.scheduler.step(loss)
