@@ -985,7 +985,6 @@ class LRSchedulerCallback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if self.need_loss:
-            print(logs.keys())
             loss = logs[self.monitor][-1]
             if isinstance(loss, list):
                 loss = loss[-1]
