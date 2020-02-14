@@ -11,7 +11,7 @@ from thtrainer.trainer import Trainer
 
 def make_metrics(n_classes):
     return [
-        thmetrics.MeanIOUMetric(n_classes)
+        'acc'
     ]
 
 
