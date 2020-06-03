@@ -19,7 +19,7 @@ class TensorBoard(Callback):
         for c in ['/', '\\', ':']:
             now_date = now_date.replace(c, KEY_SEG)
         log_dir = os.path.join(log_dir, now_date)
-        print(log_dir)
+
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         self.writer = writer or SummaryWriter(log_dir, comment, **kwargs)
