@@ -2,8 +2,9 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import os
+from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
-
 from thtrainer.callbacks import Callback
 
 KEY_SEG = '_'
@@ -11,7 +12,16 @@ KEY_SEG = '_'
 class TensorBoard(Callback):
 
     def __init__(self, log_dir=None, comment='', writer=None, input_to_model=None, **kwargs):
+        if log_dir is None:
+            log_dir = './'
         self.input_to_model = input_to_model
+        now_date = str(datetime.now())
+        for c in ['/', '\\', ':']:
+            now_date = now_date.replace(c, KEY_SEG)
+        log_dir = os.path.join(log_dir, now_date)
+        print(log_dir)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
         self.writer = writer or SummaryWriter(log_dir, comment, **kwargs)
 
     def on_train_begin(self, logs=None):

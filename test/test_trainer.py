@@ -104,11 +104,10 @@ class TestTrainer(TestCase):
                           self.loss_fn,
                           [ModelCheckpoint(
                               '../tmp/test_model.pth',
-                              monitor='loss',
-                              verbose=1
-                          )])
+                              monitor='loss'
+                          )],)
 
-        trainer.fit(self.ds, epochs=5)
+        trainer.fit(self.ds, epochs=2)
 
 
     def test_EarlyStopping(self):
@@ -138,6 +137,11 @@ class TestTrainer(TestCase):
                                            comment='Test',
                                            input_to_model=ipt)],
             metrics=[
+                Accuracy(),
+                TopKCategoricalAccuracy(),
+                'loss'
+            ],
+            val_metrics=[
                 Accuracy(),
                 TopKCategoricalAccuracy(),
                 'loss'

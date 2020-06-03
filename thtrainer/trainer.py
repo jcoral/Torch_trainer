@@ -179,7 +179,8 @@ class Trainer:
         self.callbacks = callbacks or []
         self.metrics = _check_metrics(metrics, loss_fn)
         if val_metrics is None:
-            self.val_metrics = deepcopy(self.metrics)
+            m = []
+            self.val_metrics = MetricList(m)
         else:
             self.val_metrics = _check_metrics(val_metrics, loss_fn)
 
@@ -200,8 +201,7 @@ class Trainer:
             loss_log=None,
             shuffle=True,
             validate_steps=1,
-            validate_init=1,
-            warmup=False):
+            validate_init=1):
         '''
         # Arguments
             batch_size: Integer.
@@ -247,15 +247,13 @@ class Trainer:
             callbacks.set_validation_data(validation_data)
 
         # ref detection warmup
-        warmup_scheduler = None
-        if warmup:
-            warmup_factor = 1. / 1000
-            warmup_iters = min(1000, len(data_loader) - 1)
-            warmup_scheduler = warmup_lr_scheduler(
-                self.optimizer,
-                warmup_iters,
-                warmup_factor
-            )
+        warmup_factor = 1. / 1000
+        warmup_iters = min(1000, len(data_loader) - 1)
+        warmup_scheduler = warmup_lr_scheduler(
+            self.optimizer,
+            warmup_iters,
+            warmup_factor
+        )
 
         train_logs = {}
         callbacks.on_train_begin(train_logs)
