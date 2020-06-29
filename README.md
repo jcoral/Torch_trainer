@@ -3,9 +3,14 @@
 # Torch trainer
 The Torch trainer, and similar keras, callbacks from keras, has the same API with keras. see: [keras](https://keras.io/zh/)
 
-Some of metrics from ignite, see: [ignite](https://pytorch.org/ignite)
+Some of metrics from ignite, see: [ignite](https://pytorch.org/ignite/metrics.html#ignite.metrics.Accuracy)
 
 Torch trainer api: [API](https://github.com/jcoral/Torch_trainer/blob/master/API.md)
+
+You can refer to the template:
+- classification: [click](https://github.com/jcoral/Torch_trainer/blob/master/templates/classification.py)
+- detection: [click](https://github.com/jcoral/Torch_trainer/blob/master/templates/detection.py)
+- segmentation: [click](https://github.com/jcoral/Torch_trainer/blob/master/templates/segmentation.py)
 
 # How to install
 

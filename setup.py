@@ -14,7 +14,7 @@ setup(
     keywords='torch trainer',
     url='https://github.com/jcoral/Torch_trainer',
     packages=find_packages(exclude=('test',)),
-    install_requires=['ignite>=0.2'],
+    install_requires=['pytorch-ignite>=0.2'],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3",

@@ -587,7 +587,7 @@ class ModelCheckpoint(Callback):
         self.epochs_since_last_save += 1
         if self.epochs_since_last_save >= self.period:
             self.epochs_since_last_save = 0
-            filepath = self.filepath.format(epoch=epoch + 1, **logs)
+            filepath = self.filepath.format(epoch=epoch, **logs)
             if self.save_best_only:
                 current = logs.get(self.monitor)
                 if isinstance(current, list):
@@ -600,7 +600,7 @@ class ModelCheckpoint(Callback):
                         if self.verbose > 0:
                             print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
                                   ' saving model to %s'
-                                  % (epoch + 1, self.monitor, self.best,
+                                  % (epoch, self.monitor, self.best,
                                      current, filepath))
                         self.best = current
                         if self.save_weights_only:
@@ -610,10 +610,10 @@ class ModelCheckpoint(Callback):
                     else:
                         if self.verbose > 0:
                             print('\nEpoch %05d: %s did not improve from %0.5f' %
-                                  (epoch + 1, self.monitor, self.best))
+                                  (epoch, self.monitor, self.best))
             else:
                 if self.verbose > 0:
-                    print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
+                    print('\nEpoch %05d: saving model to %s' % (epoch, filepath))
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
@@ -977,19 +977,33 @@ class LambdaCallback(Callback):
 
 class LRSchedulerCallback(Callback):
 
-    def __init__(self, scheduler):
+    def __init__(self, scheduler, monitor='train:MeanIOUMetric'):
         self.scheduler = scheduler
+        self.monitor = monitor
         self.need_loss = isinstance(scheduler, th.optim.lr_scheduler.ReduceLROnPlateau)
 
 
     def on_epoch_end(self, epoch, logs=None):
         if self.need_loss:
-            loss = logs['loss'][-1]
-            if isinstance(loss, list):
+            loss = logs[self.monitor]
+            if isinstance(loss, (list, tuple)):
                 loss = loss[-1]
             self.scheduler.step(loss)
         else:
             self.scheduler.step()
+
+
+class LRLogCallback(Callback):
+
+    def __init__(self, optim, fp=None):
+        super(LRLogCallback, self).__init__()
+        self.optim = optim
+
+    def on_batch_end(self, batch, logs=None):
+        lr = self.optim.param_groups[0]['lr']
+        if logs is not None:
+            logs['lr'] = lr
+
 
 
 

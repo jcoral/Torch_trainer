@@ -1,0 +1,15 @@
+Metadata-Version: 1.1
+Name: torch-trainer
+Version: 1.0
+Summary: The torch trainer, has the same API with keras.
+Home-page: https://github.com/jcoral/Torch_trainer
+Author: coral
+Author-email: UNKNOWN
+License: GPLv3
+Description: UNKNOWN
+Keywords: torch trainer
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Utilities
+Classifier: License :: OSI Approved :: GNU General Public License (GPL)

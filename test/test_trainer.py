@@ -22,7 +22,7 @@ import time
 from thtrainer.callbacks import (
     TerminateOnNaN, ProgbarLogger,
     ModelCheckpoint, EarlyStopping,
-    CSVLogger
+    CSVLogger, Callback
 )
 
 from thtrainer.tensorboard import TensorBoard
@@ -30,6 +30,13 @@ from thtrainer.tensorboard import TensorBoard
 from thtrainer.metrics import *
 
 from thtrainer.trainer import Trainer
+
+
+class CustomCallback(Callback):
+
+    def on_batch_end(self, batch, logs=None):
+        if logs is not None:
+            logs['cus_key'] = batch
 
 
 class TestModel(nn.Module):
@@ -90,12 +97,15 @@ class TestTrainer(TestCase):
             metrics=[
                 Accuracy(),
                 TopKCategoricalAccuracy(),
-                'loss'
-            ])
+                'Loss'
+            ],
+            val_metrics=[Accuracy()],
+            callbacks=[CustomCallback()]
+        )
 
         history = trainer.fit(self.ds, batch_size=2,
                               epochs=10, verbose=1,
-                              validation_data=self.ds)
+                              validation_data=self.ds, logs=['cus_key'])
         print(history.history)
 
 
@@ -137,6 +147,11 @@ class TestTrainer(TestCase):
                                            comment='Test',
                                            input_to_model=ipt)],
             metrics=[
+                Accuracy(),
+                TopKCategoricalAccuracy(),
+                'loss'
+            ],
+            val_metrics=[
                 Accuracy(),
                 TopKCategoricalAccuracy(),
                 'loss'
