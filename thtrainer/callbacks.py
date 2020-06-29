@@ -998,11 +998,21 @@ class LRLogCallback(Callback):
     def __init__(self, optim, fp=None):
         super(LRLogCallback, self).__init__()
         self.optim = optim
+        self.lr_logs = []
+        self.fp = fp
 
     def on_batch_end(self, batch, logs=None):
         lr = self.optim.param_groups[0]['lr']
         if logs is not None:
             logs['lr'] = lr
+
+        self.lr_logs.append(lr)
+
+    def on_train_end(self, logs=None):
+        if self.fp is not None:
+            with open(self.fp) as f:
+                f.write(str(self.lr_logs))
+
 
 
 
