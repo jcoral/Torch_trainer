@@ -71,7 +71,7 @@ class Progbar(object):
                                        current - self._seen_so_far]
                 else:
                     # print(self._values, k, v, current, self._seen_so_far)
-                    self._values[k][0] += v * (current - self._seen_so_far)
+                    self._values[k][0] = v
                     self._values[k][1] += (current - self._seen_so_far)
             else:
                 # Stateful metrics output a numeric value.  This representation
@@ -141,8 +141,7 @@ class Progbar(object):
                 info += ' - %s:' % k
 
                 if isinstance(self._values[k], list) and not isinstance(self._values[k][0], str):
-                    avg = np.mean(
-                        self._values[k][0] / max(1, self._values[k][1]))
+                    avg = self._values[k][0]
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
                     else:

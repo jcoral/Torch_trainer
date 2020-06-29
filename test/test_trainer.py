@@ -36,7 +36,7 @@ class CustomCallback(Callback):
 
     def on_batch_end(self, batch, logs=None):
         if logs is not None:
-            logs['cus_key'] = batch
+            logs['cus_key'] = int(batch + 1)
 
 
 class TestModel(nn.Module):
