@@ -145,7 +145,8 @@ class TestTrainer(TestCase):
             self.loss_fn,
             callbacks=[TensorBoard('/Volumes/Coral/tmp/nb_tmp',
                                            comment='Test',
-                                           input_to_model=ipt)],
+                                           input_to_model=ipt,
+                                   step_logs_keys=['loss'])],
             metrics=[
                 Accuracy(),
                 TopKCategoricalAccuracy(),

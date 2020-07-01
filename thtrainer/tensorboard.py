@@ -11,9 +11,23 @@ KEY_SEG = '_'
 
 class TensorBoard(Callback):
 
-    def __init__(self, log_dir=None, comment='', writer=None, input_to_model=None, **kwargs):
+    def __init__(self, log_dir=None, comment='', writer=None, step_logs_keys=None, input_to_model=None, **kwargs):
+        """
+        log_dir (string): Save directory location. Default is
+                  runs/**CURRENT_DATETIME_HOSTNAME**, which changes after each run.
+                  Use hierarchical folder structure to compare
+                  between runs easily. e.g. pass in 'runs/exp1', 'runs/exp2', etc.
+                  for each new experiment to compare across them.
+        comment (string): Comment log_dir suffix appended to the default
+                  ``log_dir``. If ``log_dir`` is assigned, this argument has no effect.
+        writer (SummaryWriter)
+        step_logs_keys (str, tuple, list): Display metric in tensorboard by step_logs_key.
+        input_to_model (Tensor): Display model structure
+                  if ``None``, Don't display, else display model structure
+        """
+
         if log_dir is None:
-            log_dir = './'
+            log_dir = './runs'
         self.input_to_model = input_to_model
         now_date = str(datetime.now())
         for c in ['/', '\\', ':']:
@@ -24,12 +38,27 @@ class TensorBoard(Callback):
             os.makedirs(log_dir)
         self.writer = writer or SummaryWriter(log_dir, comment, **kwargs)
 
+        if isinstance(step_logs_keys, str):
+            step_logs_keys = [step_logs_keys]
+        elif step_logs_keys is None:
+            step_logs_keys = []
+        if not isinstance(step_logs_keys, (tuple, list)):
+            raise RuntimeError('step_logs_keys only support str or tuple or list, but get', step_logs_keys)
+        self.step_logs_keys = step_logs_keys
+        self.step_count = 1
+
     def on_train_begin(self, logs=None):
         if self.input_to_model is not None:
             self.writer.add_graph(
                 model=self.model.model,
                 input_to_model=self.input_to_model
             )
+
+    def on_batch_end(self, batch, logs=None):
+        for k in self.step_logs_keys:
+            if k in logs:
+                self.writer.add_scalar('step/' + k, logs[k], self.step_count)
+                self.step_count += 1
 
     def on_epoch_end(self, epoch, logs=None):
         # Split logs
