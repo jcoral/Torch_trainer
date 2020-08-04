@@ -12,6 +12,7 @@ CSVLogger, Trainer
 from __future__ import unicode_literals
 from __future__ import absolute_import
 
+import os
 from unittest import TestCase
 
 from torch import nn
@@ -144,9 +145,10 @@ class TestTrainer(TestCase):
             self.model, self.optim,
             self.loss_fn,
             callbacks=[TensorBoard('/Volumes/Coral/tmp/nb_tmp',
-                                           comment='Test',
-                                           input_to_model=ipt,
-                                   step_logs_keys=['loss'])],
+                                   comment='Test',
+                                   input_to_model=ipt,
+                                   step_logs_keys=['loss'],
+                                   backup_dir=os.path.abspath(os.path.join(__file__, '../'))),],
             metrics=[
                 Accuracy(),
                 TopKCategoricalAccuracy(),

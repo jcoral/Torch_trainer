@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import os
+import shutil
 from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
 from thtrainer.callbacks import Callback
@@ -11,7 +12,13 @@ KEY_SEG = '_'
 
 class TensorBoard(Callback):
 
-    def __init__(self, log_dir=None, comment='', writer=None, step_logs_keys=None, input_to_model=None, **kwargs):
+    TB_LOG_DIR = None
+    TB_WRITER  = None
+
+    def __init__(self, log_dir=None, comment='',
+                 writer=None, step_logs_keys=None,
+                 input_to_model=None, backup_dir=None,
+                 **kwargs):
         """
         log_dir (string): Save directory location. Default is
                   runs/**CURRENT_DATETIME_HOSTNAME**, which changes after each run.
@@ -24,19 +31,27 @@ class TensorBoard(Callback):
         step_logs_keys (str, tuple, list): Display metric in tensorboard by step_logs_key.
         input_to_model (Tensor): Display model structure
                   if ``None``, Don't display, else display model structure
+        backup_dir (str): Backup direction into log direction
         """
 
         if log_dir is None:
             log_dir = './runs'
         self.input_to_model = input_to_model
-        now_date = str(datetime.now())
-        for c in ['/', '\\', ':']:
-            now_date = now_date.replace(c, KEY_SEG)
-        log_dir = os.path.join(log_dir, now_date)
+        now_date = datetime.now().strftime('%Y%b%d_%H-%M-%S')
+        log_dir = os.path.join(log_dir, comment, now_date)
+        print('TensorBoard dir: ', log_dir)
 
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         self.writer = writer or SummaryWriter(log_dir, comment, **kwargs)
+        self.log_dir = log_dir
+        self.TB_LOG_DIR = log_dir
+        self.TB_WRITER = self.writer
+
+        if backup_dir is not None:
+            if not backup_dir.startswith('/'):
+                raise RuntimeWarning('backup_dir only support absolute path')
+            shutil.copytree(backup_dir, os.path.join(log_dir, 'backup', os.path.basename(backup_dir)))
 
         if isinstance(step_logs_keys, str):
             step_logs_keys = [step_logs_keys]
