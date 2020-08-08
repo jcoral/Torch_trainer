@@ -95,11 +95,11 @@ class TestTrainer(TestCase):
         trainer = Trainer(
             self.model, self.optim,
             self.loss_fn,
-            metrics=[
-                Accuracy(),
-                TopKCategoricalAccuracy(),
-                'Loss'
-            ],
+            # metrics=[
+            #     Accuracy(),
+            #     TopKCategoricalAccuracy(),
+            #     'Loss'
+            # ],
             val_metrics=[Accuracy()],
             callbacks=[CustomCallback()]
         )

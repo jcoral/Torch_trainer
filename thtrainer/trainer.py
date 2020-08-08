@@ -94,14 +94,14 @@ def _check_logs_param(logs, loss_fn):
     return logs
 
 
-def _check_progbar_logger_metrics(metrics, validation_data, logs):
+def _check_progbar_logger_metrics(metrics, val_metrics, logs):
     keys = metrics.keys()
     keys = list(keys)
-    if validation_data is None:
+    if val_metrics is None or len(val_metrics) == 0:
         return keys + logs
 
     train_keys = ['train:' + k for k in keys]
-    val_keys = ['val:' + k for k in keys]
+    val_keys = ['val:' + k for k in list(val_metrics.keys())]
 
     return train_keys + val_keys + logs
 
@@ -259,7 +259,7 @@ class Trainer:
             'steps': n_steps,
             'samples': n_steps,
             'verbose': verbose,
-            'metrics': _check_progbar_logger_metrics(self.metrics, validation_data, logs),
+            'metrics': _check_progbar_logger_metrics(self.metrics, self.val_metrics, logs),
         })
         if validation_data is not None:
             callbacks.set_validation_data(validation_data)

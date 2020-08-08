@@ -90,6 +90,9 @@ class MetricList(object):
         for metric in self.metrics.values():
             metric.completed(name)
 
+    def __len__(self):
+        return len(self.metrics)
+
 
 
 
