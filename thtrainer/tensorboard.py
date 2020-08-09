@@ -6,9 +6,9 @@ import os
 import shutil
 from datetime import datetime
 try:
-    from torch.utils.tensorboard import SummaryWriter
-except:
     from tensorboardX import SummaryWriter
+except:
+    from torch.utils.tensorboard import SummaryWriter
 from thtrainer.callbacks import Callback
 
 KEY_SEG = '_'
