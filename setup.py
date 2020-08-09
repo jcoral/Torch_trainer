@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='torch-trainer',
-    version='1.0.3',
+    version='1.0.4',
     description='The torch trainer, has the same API with keras.',
     author='coral',
     license="GPLv3",
