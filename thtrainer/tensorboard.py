@@ -5,7 +5,10 @@ from __future__ import unicode_literals
 import os
 import shutil
 from datetime import datetime
-from torch.utils.tensorboard import SummaryWriter
+try:
+    from torch.utils.tensorboard import SummaryWriter
+except:
+    from tensorboardX import SummaryWriter
 from thtrainer.callbacks import Callback
 
 KEY_SEG = '_'
